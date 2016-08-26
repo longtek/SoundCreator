@@ -1,0 +1,211 @@
+#ifndef _NAND_H_
+#define _NAND_H_
+#include "def.h"
+
+// HCLK=100Mhz
+#define TACLS		7	// 1-clk(0ns) 
+#define TWRPH0		7	// 3-clk(25ns)
+#define TWRPH1		7	// 1-clk(10ns)  //TACLS+TWRPH0+TWRPH1>=50ns
+
+#define NF_nFCE_L()			{rNFCONT &= ~(1 << 1);}
+#define NF_nFCE_H()			{rNFCONT |=  (1 << 1);}
+
+
+#define NF_CMD(cmd)		{rNFCMD=cmd;}
+#define NF_ADDR(addr)	{rNFADDR=addr;}
+#define NF_RSTECC()			{rNFCONT |=  ((1<<5)|(1<<4));}
+
+#define NF_MECC_UnLock()	{rNFCONT &= ~(1<<7);}
+#define NF_MECC_Lock()		{rNFCONT |= (1<<7);}
+
+#define NF_SECC_UnLock()	{rNFCONT &= ~(1<<6);}
+#define NF_SECC_Lock()		{rNFCONT |= (1<<6);}
+
+
+#define NF_CLEAR_RB()		{rNFSTAT |=  (1 << 4);}
+//#define NF_DETECT_RB()		{while(!(rNFSTAT&(1<<4)));}
+#define NF_DETECT_RB()		{ while((rNFSTAT&0x11)!=0x11);} // RnB_Transdetect & RnB
+#define NF_WAITRB()		 {while (!(rNFSTAT & (1 << 0)));} 
+
+
+
+#define NF_RDDATA() 	   (rNFDATA)
+#define NF_RDDATA8() 	   (unsigned char)(rNFDATA8)
+#define NF_RDDATA32() 	   (rNFDATA32)
+#define NF_WRDATA(data) 	{rNFDATA=data;}
+
+
+#define NF_RDMECC0()			(rNFMECC0)
+#define NF_RDMECC1()			(rNFMECC1)
+
+#define NF_RDMECCD0()			(rNFMECCD0)
+#define NF_RDMECCD1()			(rNFMECCD1)
+
+#define NF_WRMECCD0(data)			{rNFMECCD0 = (data);}
+#define NF_WRMECCD1(data)			{rNFMECCD1 = (data);}
+
+typedef enum {
+    ECC_CORRECT_MAIN = 0,  // correct Main ECC
+    ECC_CORRECT_SPARE1 = 1,  // correct Main ECC
+    //ECC_CORRECT_SPARE2 = 2,  // correct Main ECC
+    ECC_CORRECT_SPARE2 = 2  // correct Main ECC
+} ECC_CORRECT_TYPE;
+
+
+#define SB_NEED_EXT_ADDR				1
+#define LB_NEED_EXT_ADDR				0
+
+
+#define	EnNandFlash()	(rNFCONF |= 0x8000)
+#define	DsNandFlash()	(rNFCONF &= ~0x8000)
+#define	InitEcc()		(rNFCONF |= 0x1000)
+#define	NoEcc()			(rNFCONF &= ~0x1000)
+#define	NFChipEn()		(rNFCONF &= ~0x800)
+#define	NFChipDs()		(rNFCONF |= 0x800)
+
+#define	WrNFCmd(cmd)	(rNFCMD = (cmd))
+#define	WrNFAddr(addr)	(rNFADDR = (addr))
+#define	WrNFDat(dat)	(rNFDATA = (dat))
+#define	WrNFDat8(dat)	(rNFDATA8 = (dat))
+#define	RdNFDat()		(rNFDATA)
+#define	RdNFStat()		(rNFSTAT)
+#define	NFIsBusy()		(!(rNFSTAT&1))
+#define	NFIsReady()		(rNFSTAT&1)
+
+#define BADBLOCKMARK                0x00
+
+#define CMD_READID			0x90		//  ReadID
+#define CMD_READ			0x00		//  Read
+#define CMD_READ2			0x50		//  Read2
+#define CMD_READ3			0x30        //  Read3
+#define CMD_RESET			0xff		//  Reset
+#define CMD_ERASE			0x60		//  Erase phase 1
+#define CMD_ERASE2			0xd0		//  Erase phase 2
+#define CMD_WRITE			0x80		//  Write phase 1
+#define CMD_WRITE2			0x10		//  Write phase 2
+#define CMD_STATUS			0x70		//  STATUS
+#define CMD_RDI				0x85        //  Random Data Input
+#define CMD_RDO				0x05        //  Random Data Output
+#define CMD_RDO2			0xE0        //  Random Data Output
+
+
+#define	STATUS_ILLACC			(1<<5)		//	Illigar Access
+
+
+//  Status bit pattern
+#define STATUS_READY		0x40		//  Ready
+#define STATUS_ERROR		0x01		//  Error
+
+
+#define PAGES_PER_BLOCK	6			// Used to avoid multiplications
+#define PAGES_IN_BLK	64
+
+
+
+typedef struct{
+      U32    NFCONF;
+      U32    NFCONT;
+      U32    NFCMMD;
+      U32    NFADDR;
+      U32    NFDATAREG;
+      U32    NFMECCD0;
+      U32    NFMECCD1;
+      U32    NFSECCD;
+      U32    NFSBLK;
+      U32    NFEBLK;
+      U32    NFSTAT; 
+}S3C2416_NAND;
+typedef struct{
+      void (*nand_reset)(void);
+      void (*nand_idle)(void);  
+      void (*nand_select_chip)(void);
+      void (*nand_deselect_chip)(void);
+      void (*write_cmd)(int cmd);
+      void (*write_addr)(U32 addr);
+      void (*read_data)(U8 *data); 
+      void (*write_data)(U8 *data);  
+}t_Nand_Chip;
+void nand_init(void);
+void nand_reset(void);
+int IsBadBlock(U32 block);
+U16 Read_Status(void);
+U8 Block_Erase(U32 block);
+static U8 EraseBlock(U32 block);
+void Block_Write(U32 Start_Block,U32 Start_Page,U8 *Buffer,U32 Count);
+static int WritePage(U32 block ,U32 page,U8 *buffer);
+void Block_Read(U32 Start_Block,U32 Start_Page,U8 *Buffer,U32 nCount);
+static void ReadPage(U32 block ,U32 page,U8 *buffer);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#endif
