@@ -20,12 +20,12 @@ void TargetInit(void)
     CalcBusClk();  
 /* 串口初始化*/
    // Delay(0);    
-    Uart_Init(0,115200);
+    Uart_Init(0,9600);
     Uart_Select(0);
     Uart_SendString("\nhello Sounding!\n");
 	Bluetooth_Serial_Init(0,9600);
     BToothCS(TRUE);
     /* LED指示灯初始化  */
     led_Init();
-    Led1_On();
+   // Led1_On();
  }

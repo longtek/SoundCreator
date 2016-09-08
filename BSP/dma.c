@@ -1,13 +1,17 @@
 #include "2416addr.h" 
 #include "config.h"
-extern OS_EVENT  *Tx_Sem,*Rx_Sem,*RxD_Sem,*Sound_Sem;
+extern OS_EVENT  *Tx_Sem,*Rx_Sem,*Sound_Sem;
 extern S16  SoundData[64];
 extern U32 WhFlag;
+
+
 void DMAIntSeverInit(void)
 {
       EnableIrq(BIT_DMA); 
       pISR_DMA =(unsigned int)DMA_IRQ;   
 }
+
+
 void DMA_Init(short *pData,unsigned int nSoundLend)
 {
        rINTMOD1 = 0x0;           
@@ -24,6 +28,9 @@ void DMA_Init(short *pData,unsigned int nSoundLend)
        EnableSubIrq(BIT_SUB_DMA2);      
        //No-stop,DMA2 channel on,No-sw trigger5
 }
+
+
+
 void InitDMATxMode(char *pData,unsigned int nDataLend)
 {
     rDMAREQSEL0=(23<<1)|(1<<0); 
@@ -35,6 +42,9 @@ void InitDMATxMode(char *pData,unsigned int nDataLend)
     rDMASKTRIG0=(0<<2)|(0<<1)|0;
     EnableSubIrq(BIT_SUB_DMA0);
 }
+
+
+
 void InitDMARxMode( char *pData,unsigned int nDataLend,unsigned char index)
 {
     rDMAREQSEL1=((20+index*2)<<1)|(1<<0);
@@ -49,6 +59,8 @@ void InitDMARxMode( char *pData,unsigned int nDataLend,unsigned char index)
     rDMASKTRIG1=(0<<2)|(1<<1)|0;
     EnableSubIrq(BIT_SUB_DMA1);
 }
+
+
 void DMA_IRQ(void) 
 {  
     unsigned int DMA_Channel;
@@ -66,19 +78,42 @@ void DMA_IRQ(void)
       else
       {
         rDISRC2 = (U32)(&SoundData[32]);
-      }
-      rDMASKTRIG2=(0<<2)|(1<<1)|0; 
+      }      
       OSSemPost(Sound_Sem);
+      rSUBSRCPND|=BIT_SUB_DMA2; 
     }        
-    if(DMA_Channel&(BIT_SUB_DMA1))
-    {  
-       OSSemPost(RxD_Sem);                           
-    } 
     if(DMA_Channel&(BIT_SUB_DMA0))
     {         
-       OSSemPost(Tx_Sem);                           
-    } 
-    rSUBSRCPND|=DMA_Channel;        
+       OSSemPost(Tx_Sem);
+       rSUBSRCPND|=BIT_SUB_DMA0;                           
+    }            
     ClearPending(BIT_DMA);  
     OS_EXIT_CRITICAL(); 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

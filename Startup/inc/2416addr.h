@@ -337,9 +337,9 @@ typedef struct tag_DMA_REGS
 #define rGPMUDP		(*(volatile unsigned *)0x56000108)	//Pull-down disable for porl M
 #define rMISCCR		(*(volatile unsigned *)0x56000080)	//Miscellaneous control
 #define rDCLKCON	(*(volatile unsigned *)0x56000084)	//DCLK0/1 control
-#define rEXTINT0	(*(volatile unsigned *)0x56000088)	//External interrupt control register 0
-#define rEXTINT1	(*(volatile unsigned *)0x5600008C)	//External interrupt control register 1
-#define rEXTINT2	(*(volatile unsigned *)0x56000090)	//External interrupt control register 2
+#define rEXTINT0	       (*(volatile unsigned *)0x56000088)	//External interrupt control register 0
+#define rEXTINT1	       (*(volatile unsigned *)0x5600008C)	//External interrupt control register 1
+#define rEXTINT2	       (*(volatile unsigned *)0x56000090)	//External interrupt control register 2
 #define rEINTFLT0	(*(volatile unsigned *)0x56000094)	//Reserved
 #define rEINTFLT1	(*(volatile unsigned *)0x56000098)	//Reserved
 #define rEINTFLT2	(*(volatile unsigned *)0x5600009c)	//External interrupt filter control register 2
@@ -974,9 +974,9 @@ typedef struct tag_UART_REGS
 
 
 #define ClearPending(bit) {\
-                rSRCPND1 = bit;\
-                rINTPND1 = bit;\
-                rINTPND1 = bit;\
+                rSRCPND1 |= bit;\
+                rINTPND1 |= bit;\
+                rINTPND1 |= bit;\
                 }                                                              
 //rSRCPND1 = bit;       //Clear pending bit
 //rINTPND1 = bit;

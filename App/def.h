@@ -12,11 +12,19 @@
 #define FALSE 	0
 #define OK		1
 #define FAIL	0
+#define CCG     1
+#define BOX     2
+#define START   0
+#define STOP    3
+#define V1CCGSIZE     25
+#define NORMAL  22
+#define VALID   1
+#define INVALID 0
 typedef enum{
 	BandRate_10kbps,
-	BandRate_125kbps,
-	BandRate_250kbps,
-	BandRate_500kbps,
+	BandRate_125kbps=16,
+	BandRate_250kbps=8,
+	BandRate_500kbps=4,
 	BandRate_1Mbps
 }CanBandRate;
 typedef struct{
@@ -24,12 +32,13 @@ typedef struct{
     int BYTENUM;
     int BITPOS;
     int DATALEN;
+    int ENDIAN;  
     float DATACOEF;
+    int OFFSET;
+    int DEFAULT;
 }CANELE;
 typedef struct{
-       int      CAN_bandrate;
-       int      CAN_IsExt;
-       int      CAN_endian;              
+       int      CAN_bandrate;                  
        CANELE   RPM; 
        CANELE   SPEED; 
        CANELE   THROTTLE;                 

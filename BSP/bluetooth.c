@@ -86,11 +86,12 @@ void RxAndTxIRQ(void)
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
     #endif 
+    OS_ENTER_CRITICAL();
     if(rSUBSRCPND&BIT_SUB_RXD2)
     {
         OSSemPost(Rx_Sem);     
     }
-    OS_ENTER_CRITICAL(); 
+     
     rSUBSRCPND|=BIT_SUB_RXD2;   
     ClearPending(BIT_UART2);
     OS_EXIT_CRITICAL();

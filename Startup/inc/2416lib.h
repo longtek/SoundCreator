@@ -60,6 +60,10 @@ char Uart_GetKey(void);
 int  Uart_GetIntNum(void);
 void Uart_SendByte(int data);
 
+
+void Uart_IRQINIT(void);
+void Uart_RxAndTxIRQ(void);
+
 #if !USE_MAIN
 void Uart_Printf(const char *fmt,...);
 #endif
@@ -73,7 +77,7 @@ int  Timer_Stop(void);            //Watchdog Timer is used.
 
 
 void ChangeClockDivider(int predivn_val, int hdivn_val,int pdivn_val);
-void ChangeUPllValue(int m,int p,int s);
+
 void ChangeMPllValue(int m,int p,int s);
 
 

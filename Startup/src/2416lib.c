@@ -10,7 +10,7 @@
 #include "option.h"
 #include "2416addr.h"
 #include "2416lib.h"
-
+#include "config.h"
 #include <stdarg.h>
 #include <string.h>
 #include <stdlib.h>
@@ -26,7 +26,7 @@ unsigned int m_uclk;
 unsigned int m_upll;
 //***************************[ SYSTEM ]***************************************************
 static int delayLoopCount;
-
+extern OS_EVENT *UartRx_Sem;
 void Delay(int time)
 {
       	// time=0: adjust the Delay function by WatchDog timer.
@@ -497,6 +497,31 @@ void ChangeClockDivider(int predivn_val,int hdivn_val,int pdivn_val)
 	rCLKDIV0 =rCLKDIV0&(~0x37);
 	rCLKDIV0 =rCLKDIV0|(predivn<<4) |(pdivn<<2)| hdivn;
 	//Uart_Printf("rCLKDIVN:%x]\n", rCLKDIV0);
+}
+void Uart_IRQINIT(void)
+{
+    EnableIrq(BIT_UART0);
+    EnableSubIrq(BIT_SUB_RXD0);
+    ClearPending(BIT_UART0);
+    rSUBSRCPND|=BIT_SUB_RXD0;
+    pISR_UART0=(U32)Uart_RxAndTxIRQ; 
+    
+}
+void Uart_RxAndTxIRQ(void)
+{
+    U32 UartChannel; 
+    #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
+    OS_CPU_SR  cpu_sr;
+    #endif 
+    OS_ENTER_CRITICAL(); 
+    UartChannel= rSUBSRCPND;
+    if(UartChannel&BIT_SUB_RXD0)
+    {
+        OSSemPost(UartRx_Sem);            
+    }    
+    rSUBSRCPND |= BIT_SUB_RXD0;   
+    ClearPending(BIT_UART0);
+    OS_EXIT_CRITICAL();
 }
 
 

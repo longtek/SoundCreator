@@ -331,6 +331,7 @@ static void MCP2515_SetBandRate(CanBandRate bandrate, int IsBackNormal)
 		value = ( MCP2515_Read(MCP2515REG_CANCTRL) & 0xe0 );	//read back mode from CANSTAT Register
 		Uart_Printf( "Set is 0x%x , Read is 0x%x\n", MODE_CONFIG, value ) ;
 	}
+	Uart_Printf( "bandrate  is %d \n", bandrate) ;
 	switch(bandrate){
 	case BandRate_10kbps:
 		MCP2515_Write(CNF1, 0x31);	//10k	16TQ
@@ -348,6 +349,7 @@ static void MCP2515_SetBandRate(CanBandRate bandrate, int IsBackNormal)
 		MCP2515_Write(CNF3, SEG4);// Phase Seg 2 = 4
 		break;
 	case BandRate_500kbps:
+	    Uart_Printf( "BandRate_500kbps \n") ;
 		MCP2515_Write(CNF1, SJW1|BRP1);	//Synchronization Jump Width Length =1 TQ
 		MCP2515_Write(CNF2, BTLMODE_CNF3|(SEG3<<3)|SEG2); // Phase Seg 1 = 3, Prop Seg = 2
 		MCP2515_Write(CNF3, SEG2);// Phase Seg 2 = 2
@@ -589,14 +591,14 @@ void Can_2515Setup(void)
 /****************************************************************************
 ¡¾¹¦ÄÜËµÃ÷¡¿
 ****************************************************************************/
-void Init_MCP2515(CanBandRate bandrate,CanConfig Canfig)
+void Init_MCP2515(CanConfig Canfig)
 {
 	unsigned char i,j,a;
 
 	MCP2515_IO_CS_Init() ;
 	MCP2515_Reset();
 
-	MCP2515_SetBandRate(bandrate,FALSE);		//ÉèÖÃ²¨ÌØÂÊ
+	MCP2515_SetBandRate(Canfig.CAN_bandrate,FALSE);		//ÉèÖÃ²¨ÌØÂÊ
 
 	// Disable interrups.
 	MCP2515_Write(CANINTE, NO_IE);  		//½ûÖ¹ËùÓÐÖÐ¶Ï
@@ -735,7 +737,7 @@ void Can_Data_Process(U8 *data_read,CANELE canelem,float *CanVal)
 {
         U8 data[4]={0,0,0,0};
         U32 *p=(U32*)data,j,val=0;
-        if(canconfig.CAN_endian==0)         
+        if(canelem.ENDIAN==0)         
         {   
             for(j=0;j<4;j++)               //¸´ÖÆÓÐÐ§×Ö½Ú¿ªÊ¼µÄ4¸ö×Ö½ÚÊý¾Ý,×éºÏ³ÉÒ»¸öintÊý¾Ý
             {                              //³ÌÐòÊÇlittle ÐèÒª½»»»Êý¾ÝÎ»ÖÃ£
