@@ -517,7 +517,7 @@ void Uart_RxAndTxIRQ(void)
     UartChannel= rSUBSRCPND;
     if(UartChannel&BIT_SUB_RXD0)
     {
-        OSSemPost(UartRx_Sem);            
+        //OSSemPost(UartRx_Sem);            
     }    
     rSUBSRCPND |= BIT_SUB_RXD0;   
     ClearPending(BIT_UART0);

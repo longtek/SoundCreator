@@ -636,7 +636,28 @@ void Init_MCP2515(CanConfig Canfig)
 	//Open Interrupt
 	MCP2515_Write(CANINTE, RX0IE|RX1IE);
 }
+/****************************************************************************
+【功能说明】MCP2515实验程序  重新配置Can
+****************************************************************************/
+void ResetCanConfig(CanConfig Canfig)
+{
+    MCP2515_Reset();
+    MCP2515_SetBandRate(Canfig.CAN_bandrate,FALSE);
+    MCP2515_Write(CANINTE, NO_IE);  		//禁止所有中断
+    
+    // Mark all filter bits as don't care:
+	MCP2515_Write_Can_ID(RXM0SIDH, 0x7ff,0);
+	MCP2515_Write_Can_ID(RXM1SIDH, 0x7ff,0);
+	// Anyway, set all filters to 0:
+	MCP2515_Write_Can_ID(RXF0SIDH, Canfig.RPM.ID, 0);
+	MCP2515_Write_Can_ID(RXF1SIDH, Canfig.THROTTLE.ID, 0);
+	MCP2515_Write_Can_ID(RXF2SIDH, Canfig.SPEED.ID, 0);
+	MCP2515_Write_Can_ID(RXF3SIDH, 0, 0);
+	MCP2515_Write_Can_ID(RXF4SIDH, 0, 0);
+	MCP2515_Write_Can_ID(RXF5SIDH, 0, 0);
 
+    MCP2515_Write(CANINTE, RX0IE|RX1IE);
+}
 /****************************************************************************
 【功能说明】MCP2515实验程序
 ****************************************************************************/

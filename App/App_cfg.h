@@ -5,7 +5,7 @@
 #define BToothTaskStkLengh     2048
 #define Can2515TaskStkLengh    1024
 #define Can2510TaskStkLengh    1024
-#define CheckTaskStkLengh      3072
+#define CheckTaskStkLengh      2048*2
 #define SoundTaskStkLengh      1024
 #define BTSendTaskStkLengh     1024
 
@@ -14,10 +14,10 @@
 #define N_MESSAGES 128
 #define NormalTaskPrio    5
 #define MainTaskPrio      NormalTaskPrio+6
-#define BToothTaskPrio    NormalTaskPrio+3
+#define BToothTaskPrio    NormalTaskPrio+1
 #define BTSendTaskPrio    NormalTaskPrio+5
-#define Can2515TaskPrio   NormalTaskPrio+2
-#define CheckTaskPrio     NormalTaskPrio+1
+#define Can2515TaskPrio   NormalTaskPrio+3
+#define CheckTaskPrio     NormalTaskPrio+2
 #define SoundTaskPrio     NormalTaskPrio
 #define ProcessTaskPrio   NormalTaskPrio+4
 

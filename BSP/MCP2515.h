@@ -238,8 +238,8 @@ static void MCP2515_Write_Can_ID(U8 address, U32 can_id, int IsExt);
 
 void CAN_2515_TEXT(void);
 void CAN_2515_RX(void);
-void CAN_2515_TX(void);
+void Init_MCP2515(CanConfig Canfig);
 void Can_Data_Process(U8 *data_read,CANELE canelem,float *CanVal);
-
+void ResetCanConfig(CanConfig Canfig);
 #endif /*MCP2515_H*/
 

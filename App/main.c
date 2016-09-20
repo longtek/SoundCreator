@@ -9,7 +9,7 @@ OS_STK   BTSendTaskStk[BTSendTaskStkLengh];
 OS_STK   ProcessTaskStk[ProcessTaskStkLengh];
 OS_EVENT *UartRx_Sem,*Sound_Sem,*Tx_Sem,*Rx_Sem,*Process_Sem; 
 extern CanConfig canconfig;            
-U8  Index=0;                            //selet DMA channel
+U8  Index=0;                          //selet DMA channel
 S16 SoundData[64];                    //data cache buffer
 U32 FileDataLenth=0,WhFlag=0;  
 U8  m_CanFlash=0,m_Receive=0;         //CAN运行标示;
@@ -28,15 +28,16 @@ float m_SpeedGain[256];   //速度增益
 U32 m_SpeedIndex=0;
 float m_ThrottleGain[128]; 
 U32   m_ThrottleIndex;
-char SendBuffer[16];      //发送数据缓冲区
+
 U8   m_PhaseFixFlash[40];              //相位周期修正标志
 
-
+SinData pSinData;
+unsigned short  Temp_RpmAmt[129][40];
 int Main(void)
 {  
     TargetInit();
     OSInit();
-    OSTimeSet(0);   
+    OSTimeSet(0); 
     OSTaskCreate (MainTask,(void *)0, &MainTaskStk[MainTaskStkLengh - 1], MainTaskPrio);	
     OSStart();
     return 0;
@@ -58,8 +59,8 @@ void  MainTask(void *pdata)
     OSTaskCreate(BToothTask,(void *)0, &BToothTaskStk[BToothTaskStkLengh - 1], BToothTaskPrio); 
     OSTaskCreate(SoundTask,(void *)0, &SoundTaskStk[SoundTaskStkLengh - 1], SoundTaskPrio);    	    
     OSTaskCreate(ProcessTask,(void *)0, &ProcessTaskStk[ProcessTaskStkLengh - 1], ProcessTaskPrio); 
-   // OSTaskCreate(CheckTask,(void *)0, &CheckTaskStk[CheckTaskStkLengh - 1], CheckTaskPrio);     
-    OSTaskCreate(BTSendTask,(void *)0, &BTSendTaskStk[BTSendTaskStkLengh - 1], BTSendTaskPrio);
+    OSTaskCreate(CheckTask,(void *)0, &CheckTaskStk[CheckTaskStkLengh - 1], CheckTaskPrio);     
+    //OSTaskCreate(BTSendTask,(void *)0, &BTSendTaskStk[BTSendTaskStkLengh - 1], BTSendTaskPrio);
     while(1)
     {     
        if(m_CanFlash)
@@ -86,17 +87,16 @@ void ProcessTask(void *pdata)
     OS_CPU_SR  cpu_sr;
     #endif
     Process_Sem=OSSemCreate(0);
+    memset(m_RpmAmt,0,sizeof(m_RpmAmt));
     while(1)
     {        
-       memset(m_PhaseFixFlash,0,sizeof(m_PhaseFixFlash));  
+       memset(m_PhaseFixFlash,0,sizeof(m_PhaseFixFlash));        
        ProcessBasicData(&m_FreData[0][0],&m_PhaseCnt[0]);
        ProcessSpeedGain(SpeedData,m_SpeedGain);
-       ProcessThrottleGain(ThrottleData,m_ThrottleGain);
-       OS_ENTER_CRITICAL(); 
+       ProcessThrottleGain(ThrottleData,m_ThrottleGain);       
        OSTaskResume(SoundTaskPrio);           
-       Uart_Printf("m_IsSuspend = %d  resumesound \n",m_IsSuspend);        
-       OSSemPend(Process_Sem,0,&err); 
-       OS_EXIT_CRITICAL();         
+       Uart_Printf("m_IsSuspend = %d  resumesound \n",m_IsSuspend);               
+       OSSemPend(Process_Sem,0,&err);          
     }   
 }
 
@@ -108,20 +108,30 @@ void BToothTask(void *pdata)
     char gVCP[3]={'V','_','1'};
     char g_filestatu=0;                                   //文件状态标识,0 无文件 =1 CCG文件,=2 box文件;
     char g_SumOfCCG=0;                                    //有效数据数量;
-    char g_validstatu=0;                                  //是否有有效数据;
-    int  g_count=0,g_CCGCnt=0;
+    char g_validstatu=0;
+    char g_BoxStatu =0;
+    char g_cnt=0 ;                           //是否有有效数据;
+    int  g_count=0;
+    int  g_CCGCnt=0;
     char g_IsV1=0;                                        //是否包含V_1;
     char g_V1Cnt=0;                                       
-    char IsDelay=TRUE;                                    //查询延时开关;
-      
+    char IsDelay=TRUE;                                    //查询延时开关;      
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
-    #endif    
+    #endif  
+    
+    pSinData.pDATA[0] =(char*)&m_RpmPhase[0];
+    pSinData.DATASIZE[0] =sizeof(m_RpmPhase);
+    pSinData.pDATA[1] =(char*)&OrderData[0];
+    pSinData.DATASIZE[1] =sizeof(OrderData);
+    pSinData.pDATA[2] =(char*)&m_RpmAmt[0][0];
+    pSinData.DATASIZE[2] =sizeof(m_RpmAmt);  
+    Uart_Printf("%d  %d  %d \n",pSinData.DATASIZE[0],pSinData.DATASIZE[1],pSinData.DATASIZE[2]);
     while(1)
     {                                            
          if(IsDelay||m_IsSuspend)                               //是否准备接受数据,
          {    
-           OSTimeDlyHMSM(0,0,0,10);                
+           OSTimeDlyHMSM(0,0,0,5);                
          }      
          else
          { 
@@ -155,29 +165,66 @@ void BToothTask(void *pdata)
 				   g_filestatu=STOP;
 				   GetValidCanData(g_buffer ,&canconfig,g_SumOfCCG);
 				   IsDelay= TRUE;                                  //CCG文件传输完毕，打开查询延时; 
+				   ResetCanConfig(canconfig);                      
 				   OS_ENTER_CRITICAL();
-				   Init_MCP2515(canconfig);
 				   OSTaskResume(SoundTaskPrio);                    //恢复SoundTask;
 				   OS_EXIT_CRITICAL();
 				}							
 			}          
 		 }
+		 if(g_BoxStatu)
+		 {
+		     if(getboxdata(data,pSinData))
+		     {
+		        g_filestatu= STOP;
+		        g_BoxStatu=INVALID;
+		        IsDelay= TRUE;
+				OSSemPost(Process_Sem);
+		     }
+		 }
          switch(g_filestatu)
          {
-             case START:if(data=='*')
+             case START: if(data=='*')
                          {                                         //*CCG文件头
                              if(++g_count>5){
                                  g_filestatu= CCG; 
                                  g_count=2;
                                  g_SumOfCCG=NORMAL;                                
-                                 m_IsSuspend=TRUE;               //有CCG文件进去,挂起Sound;
-                                 IsDelay= FALSE;                 //关闭查询延时;     
+                                 m_IsSuspend=TRUE;                //有CCG文件进去,挂起Sound;
+                                 IsDelay= FALSE;                  //关闭查询延时;     
                              }                         
-                         } break;                     
+                         }
+                         else if(data=='#')                       //box文件头文件;
+                         {
+                             // if(++g_cnt>2){                                
+                                 g_filestatu= BOX;
+                                 m_IsSuspend=TRUE;                //关闭Sound;
+                                 IsDelay= FALSE;
+                            //  } 
+                         }
+                         else {g_count=0;}
+                          break;                     
              case CCG:  if(g_validstatu==INVALID&&data=='\n')      //CCG文件有效数据起始;
                            g_validstatu=VALID;                       
                         break;
-             case BOX:
+             case BOX:  if(g_BoxStatu==BOXVALID)
+                           break;
+                        if(++g_cnt<50)                             
+                        {
+                           if(data=='&')                          //有效数据标志开始;
+                           {
+                             g_cnt=0;
+                             g_BoxStatu=BOXVALID;                 //接受有效数据;
+                           }
+                        }
+                        else
+                        {
+                           g_cnt=0;
+                           g_filestatu= STOP;
+                           g_BoxStatu=INVALID;
+		                   IsDelay= TRUE;
+		                   OSTaskResume(SoundTaskPrio);
+                        }        
                         break;
              case STOP:g_filestatu= START;
                         break;
@@ -189,6 +236,7 @@ void BTSendTask(void *pdata)
 {
     U8 err;
     int itVal[3],i,wch,ioff;
+    char SendBuffer[16];                                       //发送数据缓冲区
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
     #endif
@@ -200,7 +248,8 @@ void BTSendTask(void *pdata)
     SendBuffer[5]='S';
     SendBuffer[10]='T';
     SendBuffer[15]='E'; 
-    Tx_Sem=OSSemCreate(0);    
+    Tx_Sem=OSSemCreate(0);
+   // OSTaskSuspend(OS_PRIO_SELF);    
     while(1)
     {    
          itVal[0]=(int)m_RpmVal;
@@ -214,6 +263,7 @@ void BTSendTask(void *pdata)
                 SendBuffer[i+ioff]=itVal[wch]%10+'0';
                 itVal[wch]/=10;
             }
+            //除去开始的‘0'   eg: 0050 -> 50;
             for(i=1;i<4;i++)
             {
                 if(SendBuffer[i+ioff]=='0')
@@ -224,7 +274,11 @@ void BTSendTask(void *pdata)
          }
          rDMASKTRIG0=(0<<2)|(1<<1)|0;             
          OSSemPend(Tx_Sem,0,&err);        
-         while(!(rUTRSTAT2 & (1 << 2)));                                      
+         while(!(rUTRSTAT2 & (1 << 2))); 
+        /*if(//)
+         {
+             OSTaskSuspend(OS_PRIO_SELF);
+         }  */                                   
          OSTimeDlyHMSM(0,0,0,200);           
     }
 }
@@ -242,7 +296,7 @@ void Can2515Task(void *pdata)
     Can_2515Setup();
     while(1)
     {
-        //CAN_2515_RX();       
+      //CAN_2515_RX();       
         OSTimeDlyHMSM(0,0,0,5);       
     }
 }
@@ -273,8 +327,7 @@ void SoundTask(void *pdata)
          if(m_IsSuspend)
          {            
             m_IsSuspend=FALSE;
-            Uart_Printf("SuspendSound \n");
-            OSTaskSuspend(SoundTaskPrio);
+            OSTaskSuspend(OS_PRIO_SELF);
          }
          rDMASKTRIG2=(0<<2)|(1<<1)|0;   
          for(iOrder=0;iOrder<40;iOrder++) 
@@ -347,25 +400,49 @@ void SoundTask(void *pdata)
 void CheckTask(void *pdata)
 {
     char data=0;
-    char g_buffer[120]={'0','#'},gVCP[3]={'V','_','1'};
-    char g_filestatu=0,g_SumOfCCG=0,g_validstatu=0;
-    int  g_count=0,g_CCGCnt=0;
-    char g_IsV1=0,g_V1Cnt=0,IsDelay=TRUE;
+    char g_buffer[120]={'0','#'};
+    char gVCP[3]={'V','_','1'};
+    char g_filestatu=0;
+    char g_SumOfCCG=0;
+    char g_validstatu=0;
+    char g_BoxStatu=0;
+    int  g_count=0;
+    int  g_CCGCnt=0;
+    char g_IsV1=0;
+    char g_V1Cnt=0;
+    char IsDelay=TRUE;
+    char g_cnt=0;
     U8 err;
+    
     #if OS_CRITICAL_METHOD == 3                                /* Allocate storage for CPU status register */
     OS_CPU_SR  cpu_sr;
     #endif  
+    OS_ENTER_CRITICAL(); 
+   // Uart_IRQINIT();
+    OS_EXIT_CRITICAL();
+   // UartRx_Sem=OSSemCreate(0); 
+   // Uart_Printf("%d\n",sizeof(SinData));
+  /*pSinData.pDATA[0] =(char*)&m_RpmPhase[0];
+    pSinData.DATASIZE[0] =sizeof(m_RpmPhase);
+    pSinData.pDATA[1] =(char*)&OrderData[0];
+    pSinData.DATASIZE[1] =sizeof(OrderData);
+    pSinData.pDATA[2] =(char*)&m_RpmAmt[0][0];
+    pSinData.DATASIZE[2] =sizeof(m_RpmAmt);*/
+ // Uart_Printf("%d  %d\n",pSinData.pDATA[0],&m_RpmPhase[0]);
+ // Uart_Printf("%d  %d\n",pSinData.pDATA[1],&OrderData[0]);
+ // Uart_Printf("%d  %d\n",pSinData.pDATA[2],&m_RpmAmt[0][0]);
+    Uart_Printf("%d  %d  %d \n",pSinData.DATASIZE[0],pSinData.DATASIZE[1],pSinData.DATASIZE[2]);
     while(1)
     {     
          if(IsDelay||m_IsSuspend)
-         {    
-           OSTimeDlyHMSM(0,0,0,5); 
+         { 
+           OSTimeDlyHMSM(0,0,0,5);   
          }      
          else
-         { 
+         {            
            while(!(rUTRSTAT0 & 0x1));
          }
-         data=RdURXH0();       
+         data=RdURXH0();      
 		 if(g_validstatu)
 	     {
 			if(data==gVCP[g_V1Cnt])                               //是否含有V_1 
@@ -393,29 +470,68 @@ void CheckTask(void *pdata)
 				   g_filestatu=STOP;
 				   GetValidCanData(g_buffer ,&canconfig,g_SumOfCCG);
 				   IsDelay= TRUE;
-				   Init_MCP2515(canconfig);
+				   ResetCanConfig(canconfig);
+				   OS_ENTER_CRITICAL(); 
 				   OSTaskResume(SoundTaskPrio); 
+				   OS_EXIT_CRITICAL();
 				}							
 			}          
+		 }
+		 if(g_BoxStatu)
+		 {
+		     if(getboxdata(data,pSinData))
+		     {
+		        g_filestatu= STOP;
+		        g_BoxStatu=INVALID;
+		        IsDelay= TRUE;
+		        OSSemPost(Process_Sem);
+		     }
 		 }
          switch(g_filestatu)
          {
              case START:if(data=='*')
                          {                                         //6CCG文件头
                              if(++g_count>5){                               
-                                 g_filestatu= CCG; 
+                                 g_filestatu= CCG;                 
                                  g_count=2;
                                  g_SumOfCCG=NORMAL;
-                               //OS_ENTER_CRITICAL();
                                  m_IsSuspend=TRUE;
-                                 IsDelay= FALSE;
-                               //OS_EXIT_CRITICAL();
+                                 IsDelay= FALSE;                                 
                              }                         
-                         } break;                     
+                         } 
+                         else if(data=='#')
+                         {
+                             g_filestatu= BOX;
+                             m_IsSuspend=TRUE;
+                             IsDelay= FALSE; 
+                         }
+                        /* else if(data =='O')
+                         {
+                            // OSTaskResume(BToothTaskPrio);
+                         }*/
+                         else g_count=0;
+                         break;                     
              case CCG:  if(g_validstatu==INVALID&&data=='\n')      //CCG文件有效数据起始;
                            g_validstatu=VALID;                       
                         break;
-             case BOX:
+             case BOX:  if(g_BoxStatu==BOXVALID)
+                           break;
+                        if(++g_cnt<50)
+                        {
+                           if(data=='&')
+                           {
+                             g_cnt=0;
+                             g_BoxStatu=BOXVALID;
+                           }
+                        }
+                        else
+                        {
+                          g_cnt=0;
+                          g_filestatu= STOP;
+                          g_BoxStatu=INVALID;
+		                  IsDelay= TRUE;
+		                  OSTaskResume(SoundTaskPrio);
+                        } 
                         break;
              case STOP: g_filestatu= START;
                         break;

@@ -18,8 +18,10 @@
 #define STOP    3
 #define V1CCGSIZE     25
 #define NORMAL  22
+#define BOXVALID   1
 #define VALID   1
 #define INVALID 0
+typedef char BOOL;
 typedef enum{
 	BandRate_10kbps,
 	BandRate_125kbps=16,
@@ -43,6 +45,10 @@ typedef struct{
        CANELE   SPEED; 
        CANELE   THROTTLE;                 
 }CanConfig;
+typedef struct{
+       char *pDATA[6];
+       U32  DATASIZE[6];
+}SinData;
 #define ESC_KEY	('q')	// 0x1b
 #endif /*__DEF_H__*/
 

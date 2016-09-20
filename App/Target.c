@@ -22,7 +22,7 @@ void TargetInit(void)
    // Delay(0);    
     Uart_Init(0,9600);
     Uart_Select(0);
-    Uart_SendString("\nhello Sounding!\n");
+    Uart_SendString("\nSounding!\n");
 	Bluetooth_Serial_Init(0,9600);
     BToothCS(TRUE);
     /* LED指示灯初始化  */

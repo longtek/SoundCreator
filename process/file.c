@@ -2,6 +2,7 @@
 #include <string.h>
 #include "def.h"
 #include "stdlib.h"
+#include "config.h"
 
 
 /****************************************************************************
@@ -161,3 +162,41 @@ void GetValidCanData(char *buffer ,CanConfig *candata,char g_SumOfCCG)
      Uart_Printf("%d\n",candata->THROTTLE.OFFSET);
      Uart_Printf("%d\n",candata->THROTTLE.DEFAULT);
 }
+
+/****************************************************************************
+【功能说明】存放接收到的box 文件;
+* 
+****************************************************************************/
+
+BOOL getboxdata(char data,SinData pdata)
+{
+     static int count=0,CNT=0;
+     int i=0;
+     *(pdata.pDATA[CNT]+count)=data;
+     if(++count==pdata.DATASIZE[CNT])
+     {
+        count=0;       
+        if(++CNT==3)
+        {
+           CNT=0;           
+          /*for(i=0;i<160;i++)
+           {
+               if(i%8==0)
+                Uart_SendByte('  ');
+               if(i%16==0)
+                Uart_SendByte('\n');
+               Uart_Printf("%02x ", *(pdata.pDATA[1]+i));
+           }*/
+          /* for(i=0;i<10320;i++)
+           {
+               if(*(pdata.pDATA[2]+i)!=*((char *)m_RpmAmt+i))
+                 Uart_Printf("%02x ", *(pdata.pDATA[2]+i));
+           } */
+           Uart_Printf("Receive complete \n ");        
+           return TRUE;
+        }
+     }      
+     return FALSE; 
+}
+
+
